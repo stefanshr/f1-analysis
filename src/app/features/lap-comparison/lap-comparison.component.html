@@ -1,0 +1,147 @@
+<div class="parent-card">
+  <p-card class="selection-card">
+    <form [formGroup]="comparisonForm">
+      <div class="selection-interface">
+        <p-steps [model]="compFormStepper"
+                 [activeIndex]="activeIndex"
+                 styleClass="selection-stepper"
+                 (click)="handleStepperClick()"
+                 [ngStyle]="{ 'cursor': !showFormFields || showFormFields && firstDriverLapData && secondDriverLapData ? 'pointer' : 'auto' }">
+        </p-steps>
+        <div class="form-fields" *ngIf="showFormFields">
+          <div class="card-form-field" *ngIf="activeIndex === 0">
+            <p-autoComplete formControlName="year" placeholder="Select Year" [suggestions]="filteredYears"
+                            (completeMethod)="filterYears($event)" [autofocus]="true"
+                            (onSelect)="onYearChange()"
+                            [forceSelection]="true" [maxlength]="4" [dropdown]="true"></p-autoComplete>
+          </div>
+          <div class="card-form-field" *ngIf="activeIndex === 1">
+            <p-autoComplete formControlName="venue" placeholder="Select Venue"
+                            [suggestions]="filteredVenues"
+                            (completeMethod)="filterVenues($event)" (onSelect)="onVenueChange()"
+                            [forceSelection]="true"
+                            [dropdown]="true">
+            </p-autoComplete>
+          </div>
+          <div class="card-form-field" *ngIf="activeIndex === 2">
+            <p-dropdown formControlName="sessionType" placeholder="Select Session" [options]="sessionTypes"
+                        (onChange)="onSessionChange()"></p-dropdown>
+          </div>
+          <div class="card-form-field" *ngIf="activeIndex === 3 || activeIndex === 4">
+
+            <p-autoComplete *ngIf="activeIndex === 3; else secondDriverForm"
+                            formControlName="firstDriver"
+                            placeholder="Select First Driver"
+                            [suggestions]="filteredDrivers"
+                            (completeMethod)="filterDrivers($event)"
+                            [autofocus]="true"
+                            [forceSelection]="true"
+                            [dropdown]="true"
+                            styleClass="driver-input"
+                            (onSelect)="onDriverChange($event, false, false)"
+                            [field]="$any(formatDriverDisplay)">
+            </p-autoComplete>
+
+
+            <ng-template #secondDriverForm>
+              <p-autoComplete formControlName="secondDriver" placeholder="Select Second Driver"
+                              [suggestions]="filteredDrivers"
+                              (completeMethod)="filterDrivers($event)"
+                              [autofocus]="true"
+                              [forceSelection]="true"
+                              [dropdown]="true"
+                              (onSelect)="onDriverChange($event, true, false)"
+                              [field]="$any(formatDriverDisplay)">
+              </p-autoComplete>
+            </ng-template>
+
+            <div class="chart-and-details">
+              <div *ngIf="laps.length > 0" class="chart-container full-width">
+                <div class="hint-container">
+                  <ng-container *ngIf="activeIndex === 3; else secondDriverHint">
+                    <span class="hint-text" *ngIf="!firstDriverLap">Click on a marker to select your lap.</span>
+                  </ng-container>
+                  <ng-template #secondDriverHint>
+                    <span class="hint-text" *ngIf="!secondDriverLap">Click on a marker to select your lap.</span>
+                  </ng-template>
+                </div>
+                <apx-chart [series]="lapChartOptions.series!"
+                           [chart]="lapChartOptions.chart!"
+                           [xaxis]="lapChartOptions.xaxis!"
+                           [yaxis]="lapChartOptions.yaxis!"
+                           [tooltip]="lapChartOptions.tooltip!"
+                           [stroke]="lapChartOptions.stroke!"
+                           [grid]="lapChartOptions.grid!"
+                           [markers]="lapChartOptions.markers!">
+                </apx-chart>
+              </div>
+            </div>
+
+            <div *ngIf="laps.length > 0" class="card-buttons">
+              <p-button [label]="showInvalidLaps ? 'Hide invalid laps' : 'Show invalid laps'"
+                        styleClass="p-button-raised p-button-text form-button"
+                        (onClick)="toggleInvalidLaps()">
+
+              </p-button>
+              <p-button [label]="showOutliers ? 'Hide outliers' : 'Show outliers'"
+                        styleClass="p-button-raised p-button-text form-button"
+                        (onClick)="toggleOutliers()">
+
+              </p-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+    <ng-template pTemplate="footer">
+      <div class="card-buttons" *ngIf="showFormFields">
+        <p-button *ngIf="activeIndex > 0"
+                  label="Previous"
+                  icon="pi pi-angle-left"
+                  styleClass="p-button-raised p-button-text p-button-secondary form-button"
+                  (onClick)="prevStep()"></p-button>
+        <p-button *ngIf="activeIndex < compFormStepper.length - 1"
+                  [disabled]="isCurrentStepInvalid()"
+                  label="Next" icon="pi pi-angle-right" iconPos="right"
+                  styleClass="p-button-raised p-button-text form-button" (onClick)="nextStep()"></p-button>
+        <p-button *ngIf="activeIndex === 4"
+                  [disabled]="!isComparisonPossible()"
+                  label="Compare" iconPos="right"
+                  styleClass="p-button-raised p-button-success form-button"
+                  (onClick)="compare($event)"></p-button>
+      </div>
+    </ng-template>
+  </p-card>
+  <p-card *ngIf="(firstDriverLap || secondDriverLap) && showFormFields" class="details-card" [@slideInOut]="'in'">
+
+    <h1>Selected Lap Details</h1>
+    <hr>
+
+    <div *ngIf="firstDriverLap" class="selected-lap-details">
+      <h4>Lap number {{firstDriverLap.lapNumber}}
+        from {{getFirstDriverValue().lastName}}</h4>
+      <p>Lap Time: {{ formatTime(firstDriverLap.lapTime) }}</p>
+      <p>compound: {{ firstDriverLap.compound }}</p>
+      <p>Tyre Life: {{ firstDriverLap.tyreLife }}</p>
+    </div>
+
+    <div *ngIf="secondDriverLap" class="selected-lap-details">
+      <h4>Lap number {{secondDriverLap.lapNumber}}
+        from {{getSecondDriverValue().lastName}}</h4>
+      <p>Lap Time: {{ formatTime(secondDriverLap.lapTime) }}</p>
+      <p>Lap Number: {{ secondDriverLap.lapNumber }}</p>
+      <p>compound: {{ secondDriverLap.compound }}</p>
+      <p>Tyre Life: {{ secondDriverLap.tyreLife }}</p>
+    </div>
+  </p-card>
+</div>
+<div class="comparison">
+  <div id="track-map-container">
+    <app-track-map></app-track-map>
+  </div>
+  <div id="telemetry-analysis-container">
+    <app-telemetry-analysis-component *ngIf="firstDriverLapData && secondDriverLapData"
+                                      [firstDriverData]="firstDriverLapData"
+                                      [secondDriverData]="secondDriverLapData"></app-telemetry-analysis-component>
+  </div>
+</div>

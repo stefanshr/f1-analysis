@@ -1,0 +1,23 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="100%" viewBox="0 0 100 100">
+  <defs>
+    <path d="M129.079 24.568H174.058V82.209H129.079z"></path>
+    <path d="M106.778 41.388H174.436V99.97399999999999H106.778z"></path>
+    <path d="M117.929 39.688H155.916V78.809H117.929z"></path>
+  </defs>
+  <g>
+    <circle cx="50" cy="50" r="50" fill="#000" fill-rule="evenodd" stroke-width="0.265"></circle>
+    <path fill="#404347" stroke-width="0.746"
+          d="M151.182 32.855A160.63 160.63 0 0028.346 188.977a160.63 160.63 0 00122.836 156.12V299.88A117.165 117.165 0 0171.81 188.977a117.165 117.165 0 0179.37-110.903zm75.59 0v45.22a117.165 117.165 0 0179.37 110.902 117.165 117.165 0 01-79.37 110.902v45.219a160.63 160.63 0 00122.833-156.121A160.63 160.63 0 00226.771 32.855z"
+          transform="scale(.26458)"></path>
+    <text xml:space="preserve" style="line-height: 1.25;" x="141.174" y="63.311" stroke-width="0.265"
+          font-family="Formula1" font-size="10.583"></text>
+    <g fill="#fff" stroke-width="0.265" ariaLabel="T" font-family="Formula1" font-size="66.928" font-stretch="normal"
+       font-style="normal" font-weight="500" transform="matrix(.71244 0 0 .7172 -85.68 27.473)"
+       style="line-height: 0; white-space: pre;" font-variant="normal">
+      <path d="M165.178 6.312h50.531v13.386h-50.531zM183.751 56.507V6.312h13.386v50.195z" fill="#fff"
+            stroke-width="0.265" font-family="Formula1" font-size="66.928" font-stretch="normal" font-style="normal"
+            font-variant="normal" font-weight="500"></path>
+
+    </g>
+  </g>
+</svg>

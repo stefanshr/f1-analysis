@@ -1,0 +1,14 @@
+<div class="p-grid">
+  <div class="p-col card-column" *ngFor="let tool of tools">
+    <div class="card-container">
+      <a [routerLink]="tool.link" class="card-link">
+        <div class="card-background" [style.background-image]="'url(' + tool.image + ')'">
+          <div class="text-overlay">
+            <h3>{{tool.name}}</h3>
+            <p>{{tool.description}}</p>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>
