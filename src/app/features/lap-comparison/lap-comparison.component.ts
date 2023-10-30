@@ -1,12 +1,4 @@
-import {
-  AfterViewInit,
-  ChangeDetectorRef,
-  Component,
-  ElementRef,
-  HostListener,
-  OnInit,
-  ViewChild
-} from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { LapData } from "./models/lap-data.model";
 import { ApexOptions } from "ng-apexcharts";
@@ -14,9 +6,9 @@ import { animate, state, style, transition, trigger } from "@angular/animations"
 import { Driver } from "./models/driver.model";
 import { TrackMap } from "./models/track-map.model";
 import { LapDataDetail } from "./models/lap-data-detail.model";
-import { forkJoin } from "rxjs";
 import { F1DataService } from "../../core/services/f1-data.service";
 import { TrackMapComponent } from "./components/track-map/track-map.component";
+import { UtilityService } from "../../shared/services/utility.service";
 
 @Component({
   selector: 'app-lap-comparison',
@@ -35,10 +27,9 @@ import { TrackMapComponent } from "./components/track-map/track-map.component";
     ]),
   ]
 })
-export class LapComparisonComponent implements OnInit, AfterViewInit {
+export class LapComparisonComponent implements OnInit {
   @ViewChild(TrackMapComponent) trackMapComponent!: TrackMapComponent;
 
-  // ----- Form Variables -----
   comparisonForm!: FormGroup;
   activeIndex = 0;
   previousValues: any = {};
@@ -51,7 +42,6 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
     {label: 'Select Second Driver', active: false},
   ];
 
-  // ----- Data Variables -----
   years: number[] = [];
   venues: string[] = [];
   drivers: Driver[] = [];
@@ -69,7 +59,7 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
   firstDriverLapData: LapDataDetail | null = null;
   secondDriverLapData: LapDataDetail | null = null;
 
-  showFormFields: boolean = false;
+  showFormFields: boolean = true;
   trackMapData: TrackMap = {track: [], corners: []};
 
   initialTopPosition: number = 0;
@@ -78,11 +68,15 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
   lapChartOptions: Partial<ApexOptions> = {};
   comparisonChartCommonOptions: Partial<ApexOptions> = {};
 
+  isTrackMapLoading: boolean = false;
+  isChartLoading: boolean = false;
+
   // ----- Constructor and Initialization -----
   constructor(private f1DataService: F1DataService,
               private fb: FormBuilder,
               private cd: ChangeDetectorRef,
-              private el: ElementRef) {
+              private el: ElementRef,
+              public utilityService: UtilityService) {
     this.initializeForm();
     this.setupFormListeners();
   }
@@ -97,27 +91,50 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
     this.initializeCharts();
   }
 
-  ngAfterViewInit() {
-    const trackMapElement = this.el.nativeElement.querySelector('#track-map-container');
-    this.initialTopPosition = trackMapElement.getBoundingClientRect().top + window.pageYOffset;
-    this.showFormFields = true;
-  }
-
   @HostListener('window:scroll', ['$event'])
   onWindowScroll() {
     this.checkScroll();
   }
 
-  checkScroll() {
-    const trackMapElement = this.el.nativeElement.querySelector('#track-map-container');
-    const scrolledDistance = window.pageYOffset;
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-
+  getSizesAndPositions(trackMapElement: HTMLElement, telemetryElement: HTMLElement) {
+    const {clientWidth: trackMapWidth} = trackMapElement;
+    const {clientWidth: telemetryWidth} = telemetryElement;
+    const {innerWidth: windowWidth, innerHeight: windowHeight, scrollY: scrolledDistance} = window;
     const rect = trackMapElement.getBoundingClientRect();
     const distanceToLeft = (windowWidth - rect.width) / 2;
+
+    return {trackMapWidth, telemetryWidth, windowWidth, windowHeight, scrolledDistance, distanceToLeft, rect};
+  }
+
+  resetToInitialPosition(trackMapElement: HTMLElement, telemetryElement: HTMLElement) {
+    trackMapElement.style.left = '0px';
+    trackMapElement.style.top = '0px';
+    telemetryElement.style.right = '0px';
+  }
+
+  checkScroll() {
+    if (!this.canShowTelemetryComponent()) {
+      return;
+    }
+
+    const trackMapElement = this.el.nativeElement.querySelector('#track-map-container');
+    const telemetryElement = this.el.nativeElement.querySelector('#telemetry-analysis-container');
+    const {
+      trackMapWidth,
+      telemetryWidth,
+      windowWidth,
+      windowHeight,
+      scrolledDistance,
+      distanceToLeft,
+      rect
+    } = this.getSizesAndPositions(trackMapElement, telemetryElement);
+
+    if (windowWidth < trackMapWidth + telemetryWidth) {
+      return this.resetToInitialPosition(trackMapElement, telemetryElement);
+    }
+
     const aniDistTraveled = this.SCROLL_THRESHOLD - (this.initialTopPosition - scrolledDistance);
-    const moveElement = (aniDistTraveled / 75) * distanceToLeft
+    const moveElement = (aniDistTraveled / 75) * distanceToLeft;
 
     if (this.initialTopPosition - scrolledDistance > -this.SCROLL_THRESHOLD && this.initialTopPosition - scrolledDistance <= 0) {
       trackMapElement.style.left = `-${distanceToLeft}px`;
@@ -129,13 +146,15 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
         trackMapElement.style.left = `-${distanceToLeft}px`;
         const centerPosition = ((windowHeight - rect.height) / 2) - (this.initialTopPosition - scrolledDistance);
         trackMapElement.style.top = `${centerPosition}px`;
-
         trackMapElement.style.verticalAlign = 'middle';
+
+        if (trackMapWidth < windowWidth - telemetryWidth && trackMapWidth > (windowWidth - telemetryWidth) / 2) {
+          const distanceToRight = windowWidth / 2 - telemetryWidth / 2;
+          telemetryElement.style.right = `-${distanceToRight - 20}px`;
+        }
       }
     } else if (scrolledDistance < this.initialTopPosition - this.SCROLL_THRESHOLD) {
-      trackMapElement.style.left = '0px';
-      trackMapElement.style.position = 'relative';
-      trackMapElement.style.top = '0px';
+      this.resetToInitialPosition(trackMapElement, telemetryElement);
     }
   }
 
@@ -178,14 +197,16 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
         }
       },
       xaxis: {
-        categories: [],
-        crosshairs: {
-          show: false
-        },
         labels: {
           style: {
             colors: 'var(--text-color)'
           }
+        },
+        title: {
+          text: 'Lap Number',
+          style: {
+            fontSize: '16px'
+          },
         }
       },
       yaxis: {
@@ -193,20 +214,29 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
           style: {
             colors: 'var(--text-color)'
           },
-          formatter: (val: number) => this.formatTime(val)
+          formatter: (val: number) => this.utilityService.formatTime(val)
+        },
+        title: {
+          text: 'Lap Time',
+          style: {
+            fontSize: '16px'
+          },
         }
       },
       tooltip: {
-        y: {
-          formatter: (val: number) => this.formatTime(val)
+        theme: 'dark',
+        custom: ({series, seriesIndex, dataPointIndex, w}) => {
+          return `
+            <div style="background-color: var(--surface-card); padding: 10px; border: 1px solid white; border-radius: 5px; color: var(--text-color);">
+               Lap Time: ${this.utilityService.formatTime(series[seriesIndex][dataPointIndex])}
+            </div>
+          `;
         },
         shared: true,
         intersect: false,
-        theme: 'dark',
         marker: {
           show: false
         },
-
       },
       stroke: {
         curve: "smooth",
@@ -241,7 +271,7 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
   setDefaultFormValues() {
 
     const driver1: Driver = {
-      driverNumber: '44',
+      driverNumber: '1',
       lastName: 'Hamilton',
       firstName: 'Lewis',
       headshotUrl: 'url_to_headshot',
@@ -252,7 +282,7 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
     };
 
     const driver2: Driver = {
-      driverNumber: '63',
+      driverNumber: '14',
       lastName: 'Russel',
       firstName: 'George',
       headshotUrl: 'url_to_headshot',
@@ -264,8 +294,8 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
 
     this.comparisonForm.setValue({
       year: '2023',
-      venue: 'Qatar Grand Prix',
-      sessionType: 'Sprint',
+      venue: 'Canadian Grand Prix',
+      sessionType: 'Qualifying',
       firstDriver: driver1,
       secondDriver: driver2
     });
@@ -275,7 +305,7 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
     this.onDriverChange(driver1, false, false);
 
     const firstLap: LapData = {
-      lapNumber: 16,
+      lapNumber: 18,
       lapTime: '88.731',
       deleted: false,
       compound: 'MEDIUM',
@@ -351,21 +381,19 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
 
 // ----- Form Handling Functions -----
   onYearChange() {
-    this.fetchVenues();
     this.nextStep();
   }
 
   onVenueChange() {
-    this.fetchSessions();
     this.nextStep();
   }
 
   onSessionChange() {
-    this.fetchDrivers();
     this.nextStep();
   }
 
   onDriverChange(driver: Driver, isSecondDriver: boolean, leaveLapData: boolean) {
+    this.isChartLoading = true;
     this.loadLapData(driver, leaveLapData, lap => {
       if (isSecondDriver) {
         this.secondDriverLap = lap;
@@ -457,14 +485,6 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
     return `${driver.driverNumber} - ${driver.firstName} ${driver.lastName}`;
   }
 
-  formatTime(value: number | string): string {
-    const totalSeconds = parseFloat(value.toString());
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    const milliseconds = ((totalSeconds % 1) * 1000).toFixed(0);
-    return `${minutes}:${seconds}.${milliseconds}`;
-  }
-
   removeInvalidLaps(laps: LapData[]): LapData[] {
     return laps.filter(lap => lap.lapTime !== 'NaT');
   }
@@ -476,7 +496,7 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
     const mid = Math.ceil(sortedLaps.length / 2);
     const median = sortedLaps.length % 2 === 0 ? (sortedLaps[mid] + sortedLaps[mid - 1]) / 2 : sortedLaps[mid - 1];
 
-    const threshold = median * 1.06;
+    const threshold = median * 1.07;
 
     return laps.filter(lap => {
       const lapTime = parseFloat(lap.lapTime);
@@ -500,6 +520,7 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
       this.displayedLaps = this.removeInvalidLaps(this.laps);
       this.displayedLaps = this.removeOutliers(this.displayedLaps);
       this.updateChart(this.displayedLaps);
+      this.isChartLoading = false;
     });
   }
 
@@ -537,14 +558,17 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
     }];
 
     const maxLapNumber = Math.max(...this.laps.map(lap => lap.lapNumber));
+    const tickInterval = maxLapNumber <= 50 ? 5 : 10;
 
     this.lapChartOptions = {
       ...this.lapChartOptions,
       xaxis: {
+        ...this.lapChartOptions.xaxis,
         type: 'numeric',
         min: 1,
         max: maxLapNumber,
         tickPlacement: 'on',
+        tickAmount: Math.ceil(maxLapNumber / tickInterval)
       },
       series: newSeriesData
     };
@@ -597,34 +621,62 @@ export class LapComparisonComponent implements OnInit, AfterViewInit {
 
   compare(event: Event) {
     event.stopPropagation();
+
+    this.isTrackMapLoading = true;
     this.showFormFields = false;
+
     const year = this.getYearValue();
     const venue = this.getVenueValue();
     const sessionType = this.getSessionTypeValue();
     const firstDriver = this.getFirstDriverValue();
     const secondDriver = this.getSecondDriverValue();
 
+    this.trackMapData = {track: [], corners: []}
+    this.firstDriverLapData = null;
+    this.secondDriverLapData = null;
+
+    if (this.trackMapComponent) {
+      this.trackMapComponent.clearTrack();
+    }
+
     this.f1DataService.getTrackMap(year, venue, sessionType).subscribe(trackMap => {
       this.trackMapData = trackMap;
-      this.trackMapComponent.drawTrackMap(this.trackMapData)
+      this.setTopPostion();
+      this.trackMapComponent.drawTrackMap(this.trackMapData);
+      this.isTrackMapLoading = false;
 
-      const firstDriverLapData$ = this.f1DataService.getDriverLapData(year, venue, sessionType, parseInt(firstDriver.driverNumber), this.firstDriverLap!.lapNumber);
-      const secondDriverLapData$ = this.f1DataService.getDriverLapData(year, venue, sessionType, parseInt(secondDriver.driverNumber), this.secondDriverLap!.lapNumber);
+      this.f1DataService.getDriverLapData(year, venue, sessionType, parseInt(firstDriver.driverNumber),
+        this.firstDriverLap!.lapNumber, parseInt(secondDriver.driverNumber), this.secondDriverLap!.lapNumber).subscribe(
+        detailedDriversData => {
+          this.firstDriverLapData = detailedDriversData.firstLapData;
+          this.secondDriverLapData = detailedDriversData.secondLapData;
+          this.trackMapComponent.drawDominanceMap(this.firstDriverLapData, this.secondDriverLapData, detailedDriversData.fasterDriverBySegment, year, venue, sessionType);
+        }
+      );
 
-      forkJoin([firstDriverLapData$, secondDriverLapData$]).subscribe(results => {
-        this.firstDriverLapData = results[0];
-        this.secondDriverLapData = results[1];
 
-        this.trackMapComponent.drawDominanceMap(this.firstDriverLapData, this.secondDriverLapData, year, venue, sessionType);
-      });
     });
   }
 
   handleStepperClick() {
     if (!this.showFormFields) {
       this.showFormFields = true;
+      this.setTopPostion();
+
     } else if (this.showFormFields && this.firstDriverLapData && this.secondDriverLapData) {
       this.showFormFields = false;
+      this.setTopPostion();
     }
+  }
+
+  setTopPostion() {
+    setTimeout(() => {
+      const trackMapElement = this.el.nativeElement.querySelector('#track-map-container');
+      this.initialTopPosition = trackMapElement.getBoundingClientRect().top + window.scrollY;
+    }, 500);
+  }
+
+  canShowTelemetryComponent() {
+    return this.firstDriverLapData && this.secondDriverLapData;
   }
 }

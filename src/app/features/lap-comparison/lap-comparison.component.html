@@ -56,6 +56,8 @@
             </ng-template>
 
             <div class="chart-and-details">
+              <p-progressBar *ngIf="isChartLoading" mode="indeterminate" color="var(--text-color)"
+                             class="progress-bar" [style]="{ height: '8px' }"></p-progressBar>
               <div *ngIf="laps.length > 0" class="chart-container full-width">
                 <div class="hint-container">
                   <ng-container *ngIf="activeIndex === 3; else secondDriverHint">
@@ -65,7 +67,8 @@
                     <span class="hint-text" *ngIf="!secondDriverLap">Click on a marker to select your lap.</span>
                   </ng-template>
                 </div>
-                <apx-chart [series]="lapChartOptions.series!"
+                <apx-chart *ngIf="!isChartLoading"
+                           [series]="lapChartOptions.series!"
                            [chart]="lapChartOptions.chart!"
                            [xaxis]="lapChartOptions.xaxis!"
                            [yaxis]="lapChartOptions.yaxis!"
@@ -120,7 +123,7 @@
     <div *ngIf="firstDriverLap" class="selected-lap-details">
       <h4>Lap number {{firstDriverLap.lapNumber}}
         from {{getFirstDriverValue().lastName}}</h4>
-      <p>Lap Time: {{ formatTime(firstDriverLap.lapTime) }}</p>
+      <p>Lap Time: {{ utilityService.formatTime(firstDriverLap.lapTime) }}</p>
       <p>compound: {{ firstDriverLap.compound }}</p>
       <p>Tyre Life: {{ firstDriverLap.tyreLife }}</p>
     </div>
@@ -128,7 +131,7 @@
     <div *ngIf="secondDriverLap" class="selected-lap-details">
       <h4>Lap number {{secondDriverLap.lapNumber}}
         from {{getSecondDriverValue().lastName}}</h4>
-      <p>Lap Time: {{ formatTime(secondDriverLap.lapTime) }}</p>
+      <p>Lap Time: {{ utilityService.formatTime(secondDriverLap.lapTime) }}</p>
       <p>Lap Number: {{ secondDriverLap.lapNumber }}</p>
       <p>compound: {{ secondDriverLap.compound }}</p>
       <p>Tyre Life: {{ secondDriverLap.tyreLife }}</p>
@@ -136,12 +139,14 @@
   </p-card>
 </div>
 <div class="comparison">
+  <p-progressBar *ngIf="isTrackMapLoading" mode="indeterminate" color="var(--text-color)" class="progress-bar"
+                 [style]="{ height: '8px' }"></p-progressBar>
   <div id="track-map-container">
     <app-track-map></app-track-map>
   </div>
   <div id="telemetry-analysis-container">
-    <app-telemetry-analysis-component *ngIf="firstDriverLapData && secondDriverLapData"
-                                      [firstDriverData]="firstDriverLapData"
-                                      [secondDriverData]="secondDriverLapData"></app-telemetry-analysis-component>
+    <app-telemetry-analysis-component *ngIf="canShowTelemetryComponent()"
+                                      [firstDriverData]="firstDriverLapData!"
+                                      [secondDriverData]="secondDriverLapData!"></app-telemetry-analysis-component>
   </div>
 </div>

@@ -10,33 +10,38 @@ import { StepsModule } from 'primeng/steps';
 import { DividerModule } from 'primeng/divider';
 import { NgChartsModule } from 'ng2-charts';
 import { NgApexchartsModule } from 'ng-apexcharts';
+import { ProgressBarModule } from "primeng/progressbar";
+import { ProgressSpinnerModule } from "primeng/progressspinner";
+import { ToastModule } from "primeng/toast";
 
 @NgModule({
-    imports: [
-        CommonModule,
-        ReactiveFormsModule,
-        MenubarModule,
-        CardModule,
-        ButtonModule,
-        DropdownModule,
-        AutoCompleteModule,
-        StepsModule,
-        NgChartsModule,
-        NgApexchartsModule,
-        DividerModule
-    ],
-    exports: [
-        CommonModule,
-        ReactiveFormsModule,
-        MenubarModule,
-        CardModule,
-        ButtonModule,
-        DropdownModule,
-        AutoCompleteModule,
-        StepsModule,
-        NgChartsModule,
-        NgApexchartsModule,
-        DividerModule
-    ]
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MenubarModule,
+    CardModule,
+    ButtonModule,
+    DropdownModule,
+    AutoCompleteModule,
+    StepsModule,
+    NgChartsModule,
+    NgApexchartsModule,
+    DividerModule,
+    ToastModule,
+  ],
+  exports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MenubarModule,
+    CardModule,
+    ButtonModule,
+    DropdownModule,
+    AutoCompleteModule,
+    StepsModule,
+    NgChartsModule,
+    NgApexchartsModule,
+    DividerModule
+  ]
 })
-export class SharedModule { }
+export class SharedModule {
+}

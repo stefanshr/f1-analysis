@@ -8,6 +8,7 @@ import { ConfigService } from "./core/services/config.service";
 import { CoreModule } from "./core/core.module";
 import { FeaturesModule } from "./features/features.module";
 import { SharedModule } from "./shared/shared.module";
+import { ToastModule } from "primeng/toast";
 
 export function initializeApp(http: HttpClient, configService: ConfigService) {
   return () => new Promise<void>((resolve, reject) => {
@@ -29,14 +30,15 @@ export function initializeApp(http: HttpClient, configService: ConfigService) {
     declarations: [
         AppComponent,
     ],
-    imports: [
-        BrowserModule,
-        BrowserAnimationsModule,
-        AppRoutingModule,
-        CoreModule,
-        SharedModule,
-        FeaturesModule
-    ],
+  imports: [
+    BrowserModule,
+    BrowserAnimationsModule,
+    AppRoutingModule,
+    CoreModule,
+    SharedModule,
+    FeaturesModule,
+    ToastModule
+  ],
     providers: [
         {
             provide: APP_INITIALIZER,

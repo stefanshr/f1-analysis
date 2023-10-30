@@ -3,6 +3,7 @@ import { DRSStatus, LapDataDetail } from "../../models/lap-data-detail.model";
 import { ApexOptions } from "ng-apexcharts";
 import { SharedService } from "../../../../shared/services/shared.service";
 
+
 @Component({
   selector: 'app-telemetry-analysis-component',
   templateUrl: './telemetry-analysis.component.html',
@@ -20,13 +21,16 @@ export class TelemetryAnalysisComponent implements OnInit {
   public gearChartOptions: Partial<ApexOptions> = {};
   public drsChartOptions: Partial<ApexOptions> = {};
 
+  showCharts: boolean = false;
+
   constructor(private sharedService: SharedService) {
   }
 
   ngOnInit(): void {
+    this.initializeChartOptions();
+    this.prepareChartData();
     setTimeout(() => {
-      this.initializeChartOptions();
-      this.prepareChartData();
+      this.showCharts = true;
     }, 3000);
   }
 

@@ -2,7 +2,9 @@ import { Component } from '@angular/core';
 import { TrackMap } from "../../models/track-map.model";
 import { SharedService } from "../../../../shared/services/shared.service";
 import * as d3 from "d3";
-import { LapDataDetail } from "../../models/lap-data-detail.model";
+import { LapDataDetail, TelemetryData } from "../../models/lap-data-detail.model";
+import { FasterDriverBySegment } from "../../models/drivers-data-detail.model";
+import { UtilityService } from "../../../../shared/services/utility.service";
 
 @Component({
   selector: 'app-track-map',
@@ -10,9 +12,9 @@ import { LapDataDetail } from "../../models/lap-data-detail.model";
   styleUrls: ['./track-map.component.scss']
 })
 export class TrackMapComponent {
-  private trackMap: TrackMap = {track: [], corners: []};
+  trackMap: TrackMap = {track: [], corners: []};
 
-  constructor(private sharedService: SharedService) {
+  constructor(private sharedService: SharedService, private utilityService: UtilityService) {
     this.sharedService.telemetryData$.subscribe(distance => {
       if (distance !== null) {
         this.drawSelectedPosition(distance);
@@ -152,6 +154,7 @@ export class TrackMapComponent {
   }
 
   drawDominanceMap(firstDriverLapData: LapDataDetail, secondDriverLapData: LapDataDetail,
+                   segmentData: FasterDriverBySegment[],
                    year: number, venue: string, session: string) {
     const svg = d3.select('#trackMap');
     const width = +svg.attr('width');
@@ -179,53 +182,55 @@ export class TrackMapComponent {
       .domain([yExtent[0] as number, yExtent[1] as number])
       .range([height - padding, height - padding - scalingFactor * (yExtent[1] - yExtent[0])]);
 
-    const telemetryPosData1 = this.calculateCumulativeDistance([...firstDriverLapData.telemetryData]);
-    const telemetryPosData2 = this.calculateCumulativeDistance([...secondDriverLapData.telemetryData]);
-
-
-    const numSegments = 25;
-    const segmentDistance = Math.min(telemetryPosData1[telemetryPosData1.length - 1].cumulativeDistance, telemetryPosData2[telemetryPosData2.length - 1].cumulativeDistance) / numSegments;
-
-    let startIdx1 = 0, startIdx2 = 0;
+    const telemetryPosData1 = firstDriverLapData.telemetryData;
+    const telemetryPosData2 = secondDriverLapData.telemetryData;
 
     let totalDelay = 0;
     const segmentDuration = 100;
 
-    for (let i = 0; i < numSegments; i++) {
-      const targetDistanceEnd = (i + 1) * segmentDistance;
+    const determineColor = (fasterDriver: string) => {
+      if (firstDriverLapData.driver.teamColor === secondDriverLapData.driver.teamColor) {
+        return fasterDriver === firstDriverLapData.driver.driverNumber ? firstDriverLapData.driver.teamColor : '#000';
+      } else {
+        return fasterDriver === firstDriverLapData.driver.driverNumber ? firstDriverLapData.driver.teamColor : secondDriverLapData.driver.teamColor;
+      }
+    };
 
-      const endIdx1 = telemetryPosData1.findIndex(d => d.cumulativeDistance >= targetDistanceEnd);
-      const endIdx2 = telemetryPosData2.findIndex(d => d.cumulativeDistance >= targetDistanceEnd);
+    let prevLastDataToDraw: TelemetryData = {} as TelemetryData;
 
-      if (endIdx1 === -1 || endIdx2 === -1) {
-        console.log(`Skipping segment ${i + 1} due to undefined index.`);
-        continue;
+    for (const segment of segmentData) {
+
+      let segmentDataToDraw = []
+
+      const fasterDriver = segment.fasterDriver
+
+      const chosenTelemetryData = (fasterDriver.toString() === firstDriverLapData.driver.driverNumber)
+        ? telemetryPosData1
+        : telemetryPosData2;
+
+      const {start, end} = (fasterDriver.toString() === firstDriverLapData.driver.driverNumber)
+        ? segment.firstDriverIndices
+        : segment.secondDriverIndices;
+
+      if (prevLastDataToDraw !== null) {
+        const startIndex = chosenTelemetryData.findIndex(data => data.distance >= prevLastDataToDraw.distance);
+        if (startIndex !== -1) {
+          segmentDataToDraw = chosenTelemetryData.slice(startIndex - 5, end);
+        } else {
+          segmentDataToDraw = chosenTelemetryData.slice(start, end);
+        }
+      } else {
+        segmentDataToDraw = chosenTelemetryData.slice(start, end);
       }
 
-      const segment1 = telemetryPosData1.slice(startIdx1, endIdx1 + 1);
-      const segment2 = telemetryPosData2.slice(startIdx2, endIdx2 + 1);
-
-      const elapsed1 = parseFloat(segment1[segment1.length - 1].timestamp) - parseFloat(segment1[0].timestamp);
-      const elapsed2 = parseFloat(segment2[segment2.length - 1].timestamp) - parseFloat(segment2[0].timestamp);
-
-      const fasterDriver = elapsed1 < elapsed2 ? 'Driver 1' : 'Driver 2';
-
-      const determineColor = (fasterDriver: string) => {
-        if (firstDriverLapData.driver.teamColor === secondDriverLapData.driver.teamColor) {
-          return fasterDriver === 'Driver 1' ? firstDriverLapData.driver.teamColor : '#000';
-        } else {
-          return fasterDriver === 'Driver 1' ? firstDriverLapData.driver.teamColor : secondDriverLapData.driver.teamColor;
-        }
-      };
-
-      const color = determineColor(fasterDriver);
+      const color = determineColor(fasterDriver.toString());
 
       const lineGenerator = d3.line<any>()
         .x(d => xScale(d.x))
         .y(d => yScale(d.y));
 
       const path = svg.append('path')
-        .datum(segment1)
+        .datum(segmentDataToDraw)
         .attr('fill', 'none')
         .attr('stroke', color)
         .attr('stroke-width', 8)
@@ -242,10 +247,8 @@ export class TrackMapComponent {
         .duration(segmentDuration)
         .attr('stroke-dashoffset', 0);
 
-      startIdx1 = endIdx1;
-      startIdx2 = endIdx2;
-
       totalDelay += segmentDuration;
+      prevLastDataToDraw = segmentDataToDraw[segmentDataToDraw.length - 1];
     }
 
     svg.append("text")
@@ -295,7 +298,7 @@ export class TrackMapComponent {
       .attr("y", (d, i) => i * 30 + 15)
       .attr("fill", "#FFFFFF")
       .style("font-size", "14px")
-      .text(d => `${d.driver.driverNumber} - ${d.driver.lastName} | Lap ${d.lapNumber}: ${this.formatTime(d.lapTime)}`);
+      .text(d => `${d.driver.driverNumber} - ${d.driver.lastName} | Lap ${d.lapNumber}: ${this.utilityService.formatTime(d.lapTime)}`);
 
     const tempNode = legendTemp.node();
     let bbox;
@@ -342,27 +345,7 @@ export class TrackMapComponent {
       .attr("y", (d, i) => i * 30 + 15)
       .attr("fill", "#FFFFFF")
       .style("font-size", "14px")
-      .text(d => `${d.driver.driverNumber} - ${d.driver.lastName} | Lap ${d.lapNumber}: ${this.formatTime(d.lapTime)}`);
-  }
-
-  formatTime(value: number | string): string {
-    const totalSeconds = parseFloat(value.toString());
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    const milliseconds = ((totalSeconds % 1) * 1000).toFixed(0);
-    return `${minutes}:${seconds}.${milliseconds}`;
-  }
-
-  calculateCumulativeDistance(data: any[]) {
-    let cumulativeDistance = 0;
-    for (let i = 1; i < data.length; i++) {
-      const dx = data[i].x - data[i - 1].x;
-      const dy = data[i].y - data[i - 1].y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      cumulativeDistance += distance;
-      data[i].cumulativeDistance = cumulativeDistance;
-    }
-    return data;
+      .text(d => `${d.driver.driverNumber} - ${d.driver.lastName} | Lap ${d.lapNumber}: ${this.utilityService.formatTime(d.lapTime)}`);
   }
 
   drawSelectedPosition(distance: number) {
@@ -424,5 +407,10 @@ export class TrackMapComponent {
 
       return currentDistance < nearestDistance ? currentPoint : nearestPoint;
     }, this.trackMap.track[0]);
+  }
+
+  clearTrack() {
+    const svg = d3.select('#trackMap');
+    svg.selectAll("*").remove();
   }
 }
