@@ -24,7 +24,7 @@
             </p-autoComplete>
           </div>
           <div class="card-form-field" *ngIf="activeIndex === 2">
-            <p-dropdown formControlName="sessionType" placeholder="Select Session" [options]="sessionTypes"
+            <p-dropdown formControlName="sessionType" placeholder="Select Session" [options]="sessions"
                         (onChange)="onSessionChange()"></p-dropdown>
           </div>
           <div class="card-form-field" *ngIf="activeIndex === 3 || activeIndex === 4">

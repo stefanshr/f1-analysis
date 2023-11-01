@@ -47,7 +47,7 @@ export class LapComparisonComponent implements OnInit {
   drivers: Driver[] = [];
   laps: LapData[] = [];
   displayedLaps: LapData[] = [];
-  sessionTypes: string[] = [];
+  sessions: string[] = [];
   filteredVenues: string[] = [];
   filteredYears: number[] = [];
   filteredDrivers: Driver[] = [];
@@ -355,6 +355,8 @@ export class LapComparisonComponent implements OnInit {
     this.comparisonForm.get(this.stepToFormControlName[index + 1])?.reset();
     this.firstDriverLap = null;
     this.secondDriverLap = null;
+    this.drivers = [];
+    this.sessions = [];
   }
 
   fetchVenues() {
@@ -368,7 +370,7 @@ export class LapComparisonComponent implements OnInit {
     const year = this.getYearValue();
     const venue = this.getVenueValue();
     this.f1DataService.getSessionsFromVenue(year, venue).subscribe(sessions => {
-      this.sessionTypes = sessions;
+      this.sessions = sessions;
     });
   }
 
